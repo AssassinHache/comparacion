@@ -13,10 +13,12 @@ from src.config import (
     get_gemini_api_key,
     get_stability_api_key,
     get_openai_api_key,
+    get_groq_api_key,
     get_a2e_api_key,
     has_gemini_api_key,
     has_stability_api_key,
     has_openai_api_key,
+    has_groq_api_key,
     has_a2e_api_key,
 )
 from src.image_generator import generate_image
@@ -24,9 +26,11 @@ from src.imagen_generator_pollinations import generate_image_pollinations
 from src.imagen_generator_google import generate_image_google
 from src.text_generator import generate_text
 from src.text_generator_pollinations import generate_text_pollinations
+from src.openai_text_generator import generate_text_openai
+from src.groq_text_generator import generate_text_groq
 from src.stability_video_generator import generate_video_stability
 from src.a2e_video_generator import generate_video_a2e
-from src.vision_generator import analyze_image_gemini_2_5, analyze_image_gemini_1_5
+from src.vision_generator import analyze_image_gemini_2_5, analyze_image_gemini_2_0, analyze_image_openai, analyze_image_groq
 from src.stats_manager import get_stats, record_vote
 from src.ai_judge import evaluate_text_duels, evaluate_image_duels
 
@@ -117,23 +121,25 @@ def bg_text_generation_job(task_id: str, prompt: str, content_type: str, style: 
             text_gemini = f"[Error Gemini] No se pudo generar: {str(e)}"
             
         ACTIVE_TASKS[task_id]["progress"] = 60
-        ACTIVE_TASKS[task_id]["step_message"] = "Generando texto con Llama 3 via Pollinations (Gratis)..."
+        ACTIVE_TASKS[task_id]["step_message"] = "Generando texto con Groq Llama..."
         
-        # Llama 3 Text (Model B - Free)
+        groq_key = get_groq_api_key() if has_groq_api_key() else ""
+        
+        # Groq Llama Text (Model B)
         try:
-            text_llama = generate_text_pollinations(prompt, content_type, style, length)
+            text_openai = generate_text_groq(prompt, content_type, style, length, groq_key)
         except Exception as e:
-            text_llama = f"[Error Llama 3] No se pudo generar: {str(e)}"
+            text_openai = f"[Error Groq Llama] No se pudo generar: {str(e)}"
             
         ACTIVE_TASKS[task_id]["results"]["text_gemini"] = text_gemini
-        ACTIVE_TASKS[task_id]["results"]["text_openai"] = text_llama
+        ACTIVE_TASKS[task_id]["results"]["text_openai"] = text_openai
         
         # 2. Evaluacion Automatizada del Juez IA
         ACTIVE_TASKS[task_id]["progress"] = 85
         ACTIVE_TASKS[task_id]["step_message"] = "Ejecutando evaluacion automatica del Juez IA (Gratis)..."
         
         try:
-            evaluation = evaluate_text_duels(prompt, text_gemini, text_llama, gemini_key)
+            evaluation = evaluate_text_duels(prompt, text_gemini, text_openai, gemini_key)
         except Exception as e:
             print(f"Error in automatic text judge: {e}")
             evaluation = {
@@ -170,23 +176,25 @@ def bg_vision_job(task_id: str, prompt: str, image_base64: str, mime_type: str):
             desc_gemini_2_5 = f"[Error Gemini 2.5 Vision] {str(e)}"
             
         ACTIVE_TASKS[task_id]["progress"] = 60
-        ACTIVE_TASKS[task_id]["step_message"] = "Enviando imagen a Google Gemini 1.5 (Gratis)..."
+        ACTIVE_TASKS[task_id]["step_message"] = "Enviando imagen a Groq Llama Vision..."
         
-        # Gemini 1.5 Vision Analysis
+        groq_key = get_groq_api_key() if has_groq_api_key() else ""
+        
+        # Groq Llama Vision Analysis
         try:
-            desc_gemini_1_5 = analyze_image_gemini_1_5(image_bytes, mime_type, prompt, gemini_key)
+            desc_openai = analyze_image_groq(image_bytes, mime_type, prompt, groq_key)
         except Exception as e:
-            desc_gemini_1_5 = f"[Error Gemini 1.5 Vision] {str(e)}"
+            desc_openai = f"[Error Groq Llama Vision] {str(e)}"
             
         ACTIVE_TASKS[task_id]["results"]["text_gemini"] = desc_gemini_2_5
-        ACTIVE_TASKS[task_id]["results"]["text_openai"] = desc_gemini_1_5
+        ACTIVE_TASKS[task_id]["results"]["text_openai"] = desc_openai
         
         # 2. Evaluacion Automatizada de Vision
         ACTIVE_TASKS[task_id]["progress"] = 85
         ACTIVE_TASKS[task_id]["step_message"] = "Ejecutando evaluacion automatica de vision (Gratis)..."
         
         try:
-            evaluation = evaluate_text_duels(prompt, desc_gemini_2_5, desc_gemini_1_5, gemini_key)
+            evaluation = evaluate_text_duels(prompt, desc_gemini_2_5, desc_openai, gemini_key)
         except Exception as e:
             print(f"Error in automatic vision judge: {e}")
             evaluation = {

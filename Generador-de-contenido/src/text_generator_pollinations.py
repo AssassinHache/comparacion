@@ -1,7 +1,34 @@
 from __future__ import annotations
 
 import json
+import urllib.parse
 import requests
+import time
+
+def make_request_with_retries(method: str, url: str, **kwargs) -> requests.Response | None:
+    """
+    Helper function to perform HTTP requests with automatic retries on 429 rate limit errors
+    or connection problems.
+    """
+    for attempt in range(4):
+        try:
+            if method.lower() == 'post':
+                response = requests.post(url, **kwargs)
+            else:
+                response = requests.get(url, **kwargs)
+                
+            if response.status_code == 429:
+                print(f"[Pollinations 429 Rate Limit] Recibido 429 (Intento {attempt+1}/4). Esperando 1.5s...")
+                time.sleep(1.5)
+                continue
+                
+            return response
+        except Exception as exc:
+            if attempt == 3:
+                print(f"[Pollinations Connection Error] Error en intento final: {exc}")
+                break
+            time.sleep(1)
+    return None
 
 def generate_text_pollinations(
     prompt: str,
@@ -10,61 +37,108 @@ def generate_text_pollinations(
     length: int
 ) -> str:
     """
-    Generates text using Pollinations.ai free POST endpoint.
-    Sends the prompt in the JSON body to avoid HTTP 404/414 URL length errors.
-    Requires no API keys or registration.
+    Generates text using Pollinations.ai with multi-layered cascade fallbacks and 429 retry loops.
     """
     system_instruction = (
         f"Actua como un redactor profesional en español. "
         f"Crea un texto de tipo '{content_type}' con el estilo '{style}'. "
-        f"El texto debe tener aproximadamente {length} palabras."
-    )
-    
-    user_instruction = (
-        f"Idea base del usuario: '{prompt}'. "
+        f"El texto debe tener aproximadamente {length} palabras. "
         f"Entrega directamente el texto solicitado sin comentarios extras, saludos, titulos ni explicaciones."
     )
     
-    payload = {
-        "messages": [
-            {"role": "system", "content": system_instruction},
-            {"role": "user", "content": user_instruction}
-        ],
-        "model": "llama",
-        "stream": False
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
     
+    # Layer 1: POST request with 'openai-fast' model
     try:
-        # Send POST request to avoid URL path issues
-        response = requests.post(
+        payload = {
+            "messages": [
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": prompt}
+            ],
+            "model": "openai-fast",
+            "stream": False
+        }
+        
+        response = make_request_with_retries(
+            "post",
             "https://text.pollinations.ai/",
             json=payload,
-            headers={"Content-Type": "application/json"},
-            timeout=30
+            headers=headers,
+            timeout=20
         )
         
-        if response.ok:
+        if response and response.ok:
             resp_text = response.text.strip()
-            
-            # Check if it returned a JSON structure (in case the proxy behaves like OpenAI endpoint)
             try:
                 data = json.loads(resp_text)
                 if isinstance(data, dict) and "choices" in data:
-                    content = data["choices"][0]["message"]["content"]
-                    return content.strip()
+                    return data["choices"][0]["message"]["content"].strip()
             except ValueError:
-                # If not JSON, it is the raw text response directly, which is the default for text.pollinations.ai
-                pass
-                
-            return resp_text
-        else:
-            raise RuntimeError(f"Pollinations Text API retorno codigo {response.status_code}: {response.text[:200]}")
-            
+                if resp_text:
+                    return resp_text
+            if resp_text:
+                return resp_text
     except Exception as exc:
-        print(f"Error calling Pollinations.ai Text POST: {exc}")
-        # Safe premium fallback
-        return (
-            f"[Simulacion Llama 3] En un magico amanecer inspirado por la idea '{prompt}', las nubes "
-            f"se abrieron para revelar el destino. Este relato de tipo {content_type} en estilo {style} "
-            f"nos presenta un viaje de descubrimiento y contrastes narrativos, concluyendo en un desenlace armónico de {length} palabras."
+        print(f"[Pollinations Layer 1 failed]: {exc}")
+
+    # Layer 2: POST request with 'openai' model
+    try:
+        payload = {
+            "messages": [
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": prompt}
+            ],
+            "model": "openai",
+            "stream": False
+        }
+        
+        response = make_request_with_retries(
+            "post",
+            "https://text.pollinations.ai/",
+            json=payload,
+            headers=headers,
+            timeout=20
         )
+        
+        if response and response.ok:
+            resp_text = response.text.strip()
+            try:
+                data = json.loads(resp_text)
+                if isinstance(data, dict) and "choices" in data:
+                    return data["choices"][0]["message"]["content"].strip()
+            except ValueError:
+                if resp_text:
+                    return resp_text
+            if resp_text:
+                return resp_text
+    except Exception as exc:
+        print(f"[Pollinations Layer 2 failed]: {exc}")
+
+    # Layer 3: Legacy GET Request with encoded prompt
+    try:
+        full_instruction = f"{system_instruction}\n\nInstruccion del usuario: {prompt}"
+        encoded_prompt = urllib.parse.quote(full_instruction)
+        url = f"https://text.pollinations.ai/{encoded_prompt}"
+        
+        response = make_request_with_retries(
+            "get",
+            url,
+            headers={"User-Agent": headers["User-Agent"]},
+            timeout=20
+        )
+        if response and response.ok and response.text.strip():
+            return response.text.strip()
+    except Exception as exc:
+        print(f"[Pollinations Layer 3 failed]: {exc}")
+
+    # Final Fallback: Simulated quality offline response
+    return (
+        f"[Llama 3 - Simulación Offline]: No se pudo establecer conexión estable con los servidores de Pollinations en este momento. "
+        f"Aquí tienes un borrador simulado para tu {content_type} en estilo {style}: "
+        f"El viento susurraba entre los árboles del bosque mientras avanzaba el camino. Todo parecía quieto y misterioso, "
+        f"tal como se describe en la idea principal: '{prompt}'. De pronto, un destello lejano rompió la penumbra, "
+        f"señalando el comienzo de una aventura de descubrimiento..."
+    )

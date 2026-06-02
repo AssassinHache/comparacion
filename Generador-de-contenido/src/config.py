@@ -71,3 +71,20 @@ def has_a2e_api_key() -> bool:
 def get_a2e_api_url() -> str:
     return os.getenv("A2E_API_URL", DEFAULT_A2E_API_URL).strip()
 
+
+def get_groq_api_key() -> str:
+    return os.getenv("GROQ_API_KEY", "").strip()
+
+
+def has_groq_api_key() -> bool:
+    return bool(os.getenv("GROQ_API_KEY", "").strip())
+
+
+def get_groq_text_model() -> str:
+    return os.getenv("GROQ_TEXT_MODEL", "llama-3.3-70b-versatile").strip()
+
+
+def get_groq_vision_model() -> str:
+    return os.getenv("GROQ_VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct").strip()
+
+

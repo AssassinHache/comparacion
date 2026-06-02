@@ -9,12 +9,12 @@ Una plataforma avanzada e interactiva de benchmarking y duelos en tiempo real en
 La aplicación se compone de tres módulos interactivos principales (Duelos), además de paneles de analíticas y automatizaciones de IA:
 
 ### 1. 📝 Duelos de Texto (Text Duels)
-* **Modelos en Combate**: `Google Gemini 2.5 Flash / 1.5 Pro` vs. `OpenAI GPT-4o`.
+* **Modelos en Combate**: `Google Gemini 2.5 Flash` vs. `Groq Llama 3.3 (llama-3.3-70b-versatile)`.
 * **Personalización Avanzada**: Permite ajustar la idea base (prompt), el tipo de formato (Cuento, Poema, Marketing, etc.), el estilo/nicho (Fantasía, Ciencia Ficción, Marketing) y la extensión de palabras a través de un slider interactivo.
 * **Juez de IA Integrado**: Evalúa de manera automática con un prompt estructurado usando Gemini para puntuar del 1 al 10 las respuestas de ambos modelos en base a su coherencia, estilo y apego a las instrucciones del usuario.
 
 ### 2. 👁️ Duelos de Visión (Multimodal)
-* **Modelos en Combate**: Comparación detallada de análisis de imagen utilizando versiones premium de `Google Gemini 2.5` y `Gemini 1.5`.
+* **Modelos en Combate**: Comparación detallada de análisis de imagen utilizando `Google Gemini 2.5 Flash` vs. `Groq Llama 4 Scout (meta-llama/llama-4-scout-17b-16e-instruct)`.
 * **Interacción**: Los usuarios pueden subir una imagen (JPEG/PNG/WebP) y realizar preguntas o peticiones de análisis específicas.
 * **Evaluación**: Contraste inmediato de la precisión analítica, detección de objetos y adherencia a detalles sutiles de la imagen por parte de ambos modelos.
 
@@ -24,9 +24,10 @@ La aplicación se compone de tres módulos interactivos principales (Duelos), ad
 * **Configuración Visual**: Soporta selección de múltiples relaciones de aspecto (`1:1`, `16:9`, `4:3`, `21:9`) y estilos artísticos prediseñados.
 * **Juez Multimodal**: Gemini Vision analiza ambas imágenes o videos generados de forma automática, otorgando puntajes independientes y explicando estéticamente cuál capturó mejor el prompt original en inglés/español.
 
-### 4. 📊 Votación en Vivo y Estadísticas Globales
+### 4. 📊 Votación, Gráficos Interactivos y Estadísticas Globales
 * **Voto Ciego y Revelado**: Los usuarios pueden votar por el modelo izquierdo o derecho después de cada duelo para alimentar un tablero global.
-* **Leaderboard Interactivo**: Visualización de porcentajes de victoria acumulados por cada categoría en tiempo real.
+* **Dashboard Estadístico Interactivo (Chart.js)**: Gráficos de alta fidelidad que visualizan la cuota de participación por proveedor, niveles de actividad por arena, tasa de victoria (win rates) y evolución cronológica.
+* **Gráfico de Radar / Araña en Duelos**: Visualización dinámica de 5 dimensiones críticas de adherencia al prompt y calidad narrativa/visual directamente en la tarjeta de evaluación del duelo.
 * **Historial de Duelos**: Registro local interactivo de los duelos previos generados durante la sesión.
 
 ---
@@ -42,7 +43,7 @@ graph TD
     BE -->|Inicia Tarea en Segundo Plano| Workers[ThreadPoolExecutor]
     Workers -->|Llamadas concurrentes| APIs{APIs de IA Externas}
     APIs --> Gemini[Google Gemini API]
-    APIs --> OpenAI[OpenAI API]
+    APIs --> Groq[Groq API Llama 3.3 / Llama 4 Scout]
     APIs --> Stability[Stability AI API]
     APIs --> Pollinations[Pollinations AI / Fallbacks]
     
@@ -82,6 +83,8 @@ proyecto/
 ├── front_generate/            # --- FRONTEND (React + Vite) ---
 │   ├── src/
 │   │   ├── App.jsx                   # Componente principal interactivo de la Arena (50KB+)
+│   │   ├── StatsCharts.jsx           # Gráficos interactivos de estadísticas globales (Chart.js)
+│   │   ├── EvaluationChart.jsx       # Gráficos de radar/araña para evaluación detallada de duelos
 │   │   ├── App.css                   # Estilizado personalizado premium
 │   │   ├── main.jsx                  # Inicializador de React
 │   │   └── index.css                 # Diseño base y variables del sistema de diseño
@@ -141,8 +144,10 @@ Edita el archivo `.env` recién creado e introduce tus credenciales correspondie
 ```env
 GEMINI_API_KEY=tu_api_key_de_gemini
 GEMINI_TEXT_MODEL=gemini-2.5-flash
+GROQ_API_KEY=tu_api_key_de_groq
+GROQ_TEXT_MODEL=llama-3.3-70b-versatile
+GROQ_VISION_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
 STABILITY_API_KEY=tu_api_key_de_stability_opcional
-OPENAI_API_KEY=tu_api_key_de_openai_opcional
 A2E_API_KEY=tu_api_key_de_a2e_opcional
 ```
 

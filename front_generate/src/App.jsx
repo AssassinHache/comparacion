@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
+import StatsCharts from './StatsCharts'
+import EvaluationChart from './EvaluationChart'
 
 function App() {
   // Mode Selection: 'text' | 'vision' | 'creation'
@@ -248,7 +250,7 @@ function App() {
       votes: (stats.text_votes?.gemini || 0) + (stats.vision_votes?.gemini || 0),
       totalDuels: textTotal + visionTotal,
       winRate: (textTotal + visionTotal) > 0 ? Math.round((((stats.text_votes?.gemini || 0) + (stats.vision_votes?.gemini || 0)) / (textTotal + visionTotal)) * 100) : 0,
-      icon: '🧠'
+      icon: ''
     },
     {
       name: 'Llama 3 (Pollinations)',
@@ -256,15 +258,15 @@ function App() {
       votes: stats.text_votes?.['gpt-4o'] || 0,
       totalDuels: textTotal,
       winRate: textTotal > 0 ? Math.round(((stats.text_votes?.['gpt-4o'] || 0) / textTotal) * 100) : 0,
-      icon: '📝'
+      icon: ''
     },
     {
-      name: 'Google Gemini 1.5 Flash',
+      name: 'Google Gemini 2.0 Flash',
       category: 'Análisis de Visión (Modelo B)',
       votes: stats.vision_votes?.['gpt-4o'] || 0,
       totalDuels: visionTotal,
       winRate: visionTotal > 0 ? Math.round(((stats.vision_votes?.['gpt-4o'] || 0) / visionTotal) * 100) : 0,
-      icon: '👁️'
+      icon: ''
     },
     {
       name: 'Google Imagen 3',
@@ -272,7 +274,7 @@ function App() {
       votes: stats.image_votes?.google || 0,
       totalDuels: imageTotal,
       winRate: imageTotal > 0 ? Math.round(((stats.image_votes?.google || 0) / imageTotal) * 100) : 0,
-      icon: '🎨'
+      icon: ''
     },
     {
       name: 'Pollinations Flux (Stable)',
@@ -280,7 +282,7 @@ function App() {
       votes: stats.image_votes?.stability || 0,
       totalDuels: imageTotal,
       winRate: imageTotal > 0 ? Math.round(((stats.image_votes?.stability || 0) / imageTotal) * 100) : 0,
-      icon: '⚡'
+      icon: ''
     },
     {
       name: 'A2E Kling',
@@ -288,7 +290,7 @@ function App() {
       votes: stats.video_votes?.a2e || 0,
       totalDuels: videoTotal,
       winRate: videoTotal > 0 ? Math.round(((stats.video_votes?.a2e || 0) / videoTotal) * 100) : 0,
-      icon: '🎬'
+      icon: ''
     },
     {
       name: 'Stability Video SVD',
@@ -296,7 +298,7 @@ function App() {
       votes: stats.video_votes?.stability || 0,
       totalDuels: videoTotal,
       winRate: videoTotal > 0 ? Math.round(((stats.video_votes?.stability || 0) / videoTotal) * 100) : 0,
-      icon: '🌀'
+      icon: ''
     }
   ]
 
@@ -311,13 +313,21 @@ function App() {
 
   // Arena Activity Ranking
   const arenaActivity = [
-    { name: 'Texto', total: textTotal, icon: '📝' },
-    { name: 'Visión Multimodal', total: visionTotal, icon: '👁️' },
-    { name: 'Imagen', total: imageTotal, icon: '🎨' },
-    { name: 'Video', total: videoTotal, icon: '🎬' }
+    { name: 'Texto', total: textTotal, icon: '' },
+    { name: 'Visión Multimodal', total: visionTotal, icon: '' },
+    { name: 'Imagen', total: imageTotal, icon: '' },
+    { name: 'Video', total: videoTotal, icon: '' }
   ].sort((a, b) => b.total - a.total)
 
   const topActiveArena = arenaActivity[0] && arenaActivity[0].total > 0 ? arenaActivity[0] : null
+
+  const evalModelAName = activeTabMode === 'creation' 
+    ? (creationType === 'imagen' ? 'Google Imagen 3' : 'A2E Kling') 
+    : 'Google Gemini 2.5'
+
+  const evalModelBName = activeTabMode === 'creation' 
+    ? (creationType === 'imagen' ? 'Pollinations Flux' : 'Stability Video') 
+    : 'Groq Llama'
 
   return (
     <div className="app-container">
@@ -339,13 +349,13 @@ function App() {
           className={`mode-nav-btn ${arenaMode === 'text' ? 'active' : ''}`}
           onClick={() => !isLoading && setArenaMode('text')}
         >
-          Generacion de Texto (Gemini vs Llama)
+          Generacion de Texto (Gemini vs Groq Llama)
         </button>
         <button 
           className={`mode-nav-btn ${arenaMode === 'vision' ? 'active' : ''}`}
           onClick={() => !isLoading && setArenaMode('vision')}
         >
-          Analisis Multimodal de Imagen (Gemini 2.5 vs Gemini 1.5)
+          Analisis Multimodal de Imagen (Gemini vs Groq Llama)
         </button>
         <button 
           className={`mode-nav-btn ${arenaMode === 'creation' ? 'active' : ''}`}
@@ -413,42 +423,7 @@ function App() {
             />
           </div>
 
-          {/* TEXT MODE PARAMS */}
-          {arenaMode === 'text' && (
-            <>
-              <div className="form-group">
-                <label htmlFor="type-select">Formato del Texto</label>
-                <select
-                  id="type-select"
-                  className="select-field"
-                  value={contentType}
-                  onChange={(e) => setContentType(e.target.value)}
-                  disabled={isLoading}
-                >
-                  <option value="Cuento">Cuento / Relato</option>
-                  <option value="Artículo">Articulo Critico</option>
-                  <option value="Poema">Poema Libre</option>
-                  <option value="Marketing Copy">Copia de Marketing</option>
-                </select>
-              </div>
 
-              <div className="slider-group">
-                <div className="slider-header">
-                  <label>Extension</label>
-                  <span className="slider-value">{length} palabras</span>
-                </div>
-                <input
-                  type="range"
-                  min="80"
-                  max="300"
-                  step="10"
-                  value={length}
-                  onChange={(e) => setLength(parseInt(e.target.value))}
-                  disabled={isLoading}
-                />
-              </div>
-            </>
-          )}
 
           {/* CREATION MODE SPECIFICS */}
           {arenaMode === 'creation' && (
@@ -490,23 +465,7 @@ function App() {
             </>
           )}
 
-          {/* STYLE SELECTION (for Text and Creation) */}
-          {arenaMode !== 'vision' && (
-            <div className="form-group">
-              <label htmlFor="style-select">Estilo Visual</label>
-              <select
-                id="style-select"
-                className="select-field"
-                value={style}
-                onChange={(e) => setStyle(e.target.value)}
-                disabled={isLoading}
-              >
-                <option value="Fantasía">Fantasia Artistica</option>
-                <option value="Ciencia ficción">Ciencia Ficcion / Cinematic</option>
-                <option value="Marketing">Marketing / Premium</option>
-              </select>
-            </div>
-          )}
+
 
           {/* INITIATE BUTTON */}
           <button
@@ -665,11 +624,11 @@ function App() {
                     <div className="model-info">
                       <div className="model-meta">
                         <span className="model-brand-name">
-                          {activeTabMode === 'creation' ? (creationType === 'imagen' ? 'Pollinations.ai' : 'Stability AI') : (activeTabMode === 'vision' ? 'Google Gemini' : 'Llama 3')}
+                          {activeTabMode === 'creation' ? (creationType === 'imagen' ? 'Pollinations.ai' : 'Stability AI') : 'Groq'}
                         </span>
                         <span className="model-codename">
-                          {activeTabMode === 'text' && 'Llama-3 (Pollinations)'}
-                          {activeTabMode === 'vision' && 'gemini-1.5-flash'}
+                          {activeTabMode === 'text' && 'llama-3.3'}
+                          {activeTabMode === 'vision' && 'llama-4-scout'}
                           {activeTabMode === 'creation' && (creationType === 'imagen' ? 'Flux Model' : 'Stable Video Diffusion')}
                         </span>
                       </div>
@@ -750,7 +709,7 @@ function App() {
               {/* AUTOMATIC EVALUATION SCOREBOARD */}
               {results.evaluation && (
                 <div className="automatic-evaluation-card">
-                  <h3 className="evaluation-title">Evaluacion de Coherencia Automatica (Analisis del Juez IA)</h3>
+                  <h3 className="evaluation-title">Evaluacion de Coherencia Automatica </h3>
                   <div className="evaluation-scores-container">
                     <div className="score-block model-a-score">
                       <span className="score-label">Puntaje Modelo A</span>
@@ -772,10 +731,18 @@ function App() {
                         <span className="score-max">/ 10</span>
                       </div>
                       <span className="score-model-name">
-                        {activeTabMode === 'creation' ? (creationType === 'imagen' ? 'Pollinations.ai' : 'Stability AI') : (activeTabMode === 'vision' ? 'Google Gemini 1.5' : 'Llama 3')}
+                        {activeTabMode === 'creation' ? (creationType === 'imagen' ? 'Pollinations.ai' : 'Stability AI') : 'Groq Llama'}
                       </span>
                     </div>
                   </div>
+                  
+                  <EvaluationChart 
+                    evaluation={results.evaluation} 
+                    modelAName={evalModelAName} 
+                    modelBName={evalModelBName} 
+                    mode={activeTabMode} 
+                  />
+
                   <div className="evaluation-analysis-block">
                     <span className="analysis-label">Analisis Comparativo Detallado</span>
                     <p className="analysis-text">{results.evaluation.analysis}</p>
@@ -799,7 +766,7 @@ function App() {
             <div className="stats-dashboard-header">
               <div className="stats-dashboard-title-wrapper">
                 <h2 className="stats-dashboard-title">
-                  📊 Dashboard de Rendimiento y Estadísticas de Modelos
+                  Dashboard de Rendimiento y Estadísticas de Modelos
                 </h2>
                 <p className="stats-dashboard-subtitle">
                   Análisis global detallado de las preferencias y rendimiento de cada modelo en tiempo real.
@@ -811,7 +778,7 @@ function App() {
             <div className="stats-metrics-grid">
               <div className="metric-card">
                 <div className="metric-icon-wrapper">
-                  🗳️
+                  VOTOS
                 </div>
                 <div className="metric-details">
                   <span className="metric-value">{totalVotesCount}</span>
@@ -821,7 +788,7 @@ function App() {
 
               <div className="metric-card">
                 <div className="metric-icon-wrapper leader-icon">
-                  🏆
+                  LIDER
                 </div>
                 <div className="metric-details">
                   <span className="metric-value" style={{ fontSize: globalLeaderModel ? '1.15rem' : '1.75rem' }}>
@@ -835,7 +802,7 @@ function App() {
 
               <div className="metric-card">
                 <div className="metric-icon-wrapper activity-icon">
-                  🔥
+                  ARENA
                 </div>
                 <div className="metric-details">
                   <span className="metric-value" style={{ fontSize: topActiveArena ? '1.25rem' : '1.75rem' }}>
@@ -850,14 +817,14 @@ function App() {
 
             {/* Grid of Split Progress Bars (All categories at once) */}
             <h3 className="leaderboard-title" style={{ marginTop: '0.5rem', marginBottom: '-0.5rem' }}>
-              🎯 Distribución de Votos por Categoría de Combate
+              Distribución de Votos por Categoría de Combate
             </h3>
             
             <div className="arenas-split-grid">
               {/* Category 1: Texto */}
               <div className="arena-split-card text-card">
                 <div className="arena-split-header">
-                  <span className="arena-split-title">📝 Texto (Gemini vs Llama)</span>
+                  <span className="arena-split-title">Texto (Gemini vs Groq Llama)</span>
                   <span className="arena-split-total">{textTotal} votos</span>
                 </div>
                 <div className="competitor-row">
@@ -869,7 +836,7 @@ function App() {
                     </span>
                   </div>
                   <div className="competitor-info">
-                    <span className="competitor-name">Llama 3 (Pollinations)</span>
+                    <span className="competitor-name">Groq Llama 3.3</span>
                     <span className="competitor-stats">
                       {stats.text_votes?.['gpt-4o'] || 0} votos ({textLlamaPct}%)
                       {stats.text_votes?.['gpt-4o'] > stats.text_votes?.gemini && <span className="competitor-pill winner">Líder</span>}
@@ -884,7 +851,7 @@ function App() {
                 </div>
                 <div className="arena-card-footer">
                   <span className={`arena-leader-tag ${stats.text_votes?.gemini !== stats.text_votes?.['gpt-4o'] ? 'leader' : 'tie'}`}>
-                    {stats.text_votes?.gemini > stats.text_votes?.['gpt-4o'] ? '🏆 Líder: Gemini' : stats.text_votes?.gemini < stats.text_votes?.['gpt-4o'] ? '🏆 Líder: Llama 3' : '⚖️ Empate Técnico'}
+                    {stats.text_votes?.gemini > stats.text_votes?.['gpt-4o'] ? 'Líder: Gemini' : stats.text_votes?.gemini < stats.text_votes?.['gpt-4o'] ? 'Líder: Llama 3.3' : 'Empate Técnico'}
                   </span>
                   <span className="arena-dominance-pct">
                     {textTotal > 0 ? `Margen: ${Math.abs(textGeminiPct - textLlamaPct)}%` : 'Sin datos'}
@@ -895,7 +862,7 @@ function App() {
               {/* Category 2: Visión */}
               <div className="arena-split-card vision-card">
                 <div className="arena-split-header">
-                  <span className="arena-split-title">👁️ Visión (Gemini 2.5 vs 1.5)</span>
+                  <span className="arena-split-title">Visión (Gemini vs Groq Llama)</span>
                   <span className="arena-split-total">{visionTotal} votos</span>
                 </div>
                 <div className="competitor-row">
@@ -907,7 +874,7 @@ function App() {
                     </span>
                   </div>
                   <div className="competitor-info">
-                    <span className="competitor-name">Gemini 1.5 Flash</span>
+                    <span className="competitor-name">Groq Llama 4 Scout</span>
                     <span className="competitor-stats">
                       {stats.vision_votes?.['gpt-4o'] || 0} votos ({visionGemini15Pct}%)
                       {stats.vision_votes?.['gpt-4o'] > stats.vision_votes?.gemini && <span className="competitor-pill winner">Líder</span>}
@@ -922,7 +889,7 @@ function App() {
                 </div>
                 <div className="arena-card-footer">
                   <span className={`arena-leader-tag ${stats.vision_votes?.gemini !== stats.vision_votes?.['gpt-4o'] ? 'leader' : 'tie'}`}>
-                    {stats.vision_votes?.gemini > stats.vision_votes?.['gpt-4o'] ? '🏆 Líder: Gemini 2.5' : stats.vision_votes?.gemini < stats.vision_votes?.['gpt-4o'] ? '🏆 Líder: Gemini 1.5' : '⚖️ Empate Técnico'}
+                    {stats.vision_votes?.gemini > stats.vision_votes?.['gpt-4o'] ? 'Líder: Gemini 2.5' : stats.vision_votes?.gemini < stats.vision_votes?.['gpt-4o'] ? 'Líder: Groq Llama' : 'Empate Técnico'}
                   </span>
                   <span className="arena-dominance-pct">
                     {visionTotal > 0 ? `Margen: ${Math.abs(visionGemini25Pct - visionGemini15Pct)}%` : 'Sin datos'}
@@ -933,7 +900,7 @@ function App() {
               {/* Category 3: Imagen */}
               <div className="arena-split-card image-card">
                 <div className="arena-split-header">
-                  <span className="arena-split-title">🎨 Imagen (Imagen 3 vs Flux)</span>
+                  <span className="arena-split-title">Imagen (Imagen 3 vs Flux)</span>
                   <span className="arena-split-total">{imageTotal} votos</span>
                 </div>
                 <div className="competitor-row">
@@ -960,7 +927,7 @@ function App() {
                 </div>
                 <div className="arena-card-footer">
                   <span className={`arena-leader-tag ${stats.image_votes?.google !== stats.image_votes?.stability ? 'leader' : 'tie'}`}>
-                    {stats.image_votes?.google > stats.image_votes?.stability ? '🏆 Líder: Imagen 3' : stats.image_votes?.google < stats.image_votes?.stability ? '🏆 Líder: Flux' : '⚖️ Empate Técnico'}
+                    {stats.image_votes?.google > stats.image_votes?.stability ? 'Líder: Imagen 3' : stats.image_votes?.google < stats.image_votes?.stability ? 'Líder: Flux' : 'Empate Técnico'}
                   </span>
                   <span className="arena-dominance-pct">
                     {imageTotal > 0 ? `Margen: ${Math.abs(imageGooglePct - imageStabilityPct)}%` : 'Sin datos'}
@@ -971,7 +938,7 @@ function App() {
               {/* Category 4: Video */}
               <div className="arena-split-card video-card">
                 <div className="arena-split-header">
-                  <span className="arena-split-title">🎬 Video (A2E vs Stability)</span>
+                  <span className="arena-split-title">Video (A2E vs Stability)</span>
                   <span className="arena-split-total">{videoTotal} votos</span>
                 </div>
                 <div className="competitor-row">
@@ -998,7 +965,7 @@ function App() {
                 </div>
                 <div className="arena-card-footer">
                   <span className={`arena-leader-tag ${stats.video_votes?.a2e !== stats.video_votes?.stability ? 'leader' : 'tie'}`}>
-                    {stats.video_votes?.a2e > stats.video_votes?.stability ? '🏆 Líder: A2E Kling' : stats.video_votes?.a2e < stats.video_votes?.stability ? '🏆 Líder: Stability Video' : '⚖️ Empate Técnico'}
+                    {stats.video_votes?.a2e > stats.video_votes?.stability ? 'Líder: A2E Kling' : stats.video_votes?.a2e < stats.video_votes?.stability ? 'Líder: Stability Video' : 'Empate Técnico'}
                   </span>
                   <span className="arena-dominance-pct">
                     {videoTotal > 0 ? `Margen: ${Math.abs(videoA2EPct - videoStabilityPct)}%` : 'Sin datos'}
@@ -1008,57 +975,7 @@ function App() {
             </div>
 
             {/* Leaderboard Table Section */}
-            <div className="leaderboard-section">
-              <h3 className="leaderboard-title">
-                🏆 Tabla de Clasificación General de Modelos (Leaderboard)
-              </h3>
-              <div className="leaderboard-table-wrapper">
-                <table className="leaderboard-table">
-                  <thead>
-                    <tr>
-                      <th>Puesto</th>
-                      <th>Modelo de Inteligencia Artificial</th>
-                      <th>Categoría Principal</th>
-                      <th>Votos Globales</th>
-                      <th>Porcentaje de Victorias</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedLeaderboard.map((model, idx) => {
-                      const rankMedal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '';
-                      const rankClass = idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : 'rank-other';
-                      
-                      return (
-                        <tr key={idx}>
-                          <td className="rank-cell">
-                            <span className={`rank-badge ${rankClass}`}>
-                              {rankMedal ? rankMedal : idx + 1}
-                            </span>
-                          </td>
-                          <td className="model-cell">
-                            <span style={{ marginRight: '0.4rem' }}>{model.icon}</span> {model.name}
-                          </td>
-                          <td className="category-cell">
-                            {model.category}
-                          </td>
-                          <td className="votes-cell">
-                            {model.votes} votos
-                          </td>
-                          <td className="winrate-cell">
-                            <span style={{ fontWeight: 800, color: model.winRate > 50 ? '#34d399' : model.winRate === 0 ? '#94a3b8' : '#fb7185' }}>
-                              {model.winRate}%
-                            </span>
-                            <div className="winrate-bar-outer">
-                              <div className="winrate-bar-inner" style={{ width: `${model.winRate}%` }} />
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <StatsCharts stats={stats} />
           </div>
 
           {/* Duels History by Prompt Log Table */}
@@ -1086,16 +1003,15 @@ function App() {
                       
                       const winnerLabels = {
                         gemini: "Google Gemini 2.5",
-                        'gpt-4o': "Llama 3",
+                        'gpt-4o': "Groq Llama",
                         google: "Google Imagen",
                         stability: "Pollinations Flux",
                         a2e: "A2E Kling"
                       };
                       
-                      // Map vision category winner labels to the correct version
                       let winnerName = winnerLabels[item.winner] || item.winner;
                       if (item.category === 'vision') {
-                        winnerName = item.winner === 'gemini' ? 'Google Gemini 2.5' : 'Google Gemini 1.5';
+                        winnerName = item.winner === 'gemini' ? 'Google Gemini 2.5' : 'Groq Llama';
                       } else if (item.category === 'video') {
                         winnerName = item.winner === 'a2e' ? 'A2E Kling' : 'Stability Video';
                       }
